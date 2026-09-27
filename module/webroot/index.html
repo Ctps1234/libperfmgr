@@ -61,8 +61,8 @@
     <div class="lbl">Atenção</div>
     <div class="hint">
       Em aparelhos com HAL de energia próprio, o perfmgr vem em modo seguro: não substitui o HAL de fábrica
-      nem ativa as hints. Não inicie o HAL manualmente em runtime; caso opte por <code>override</code>, aplique
-      apenas por reinicialização. Se algo correr mal: mantenha o volume pressionado no arranque (o KernelSU desativa os módulos)
+      nem ativa as hints. Para usar o perfmgr completo, execute <code>action.sh override on</code> uma vez e reinicie;
+      depois disso ele inicia automaticamente no boot. Não inicie o HAL manualmente em runtime. Se algo correr mal: mantenha o volume pressionado no arranque (o KernelSU desativa os módulos)
       ou crie <code>/data/adb/modules/libperfmgr-hyperos/disable</code>.
     </div>
   </div>

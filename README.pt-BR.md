@@ -109,7 +109,17 @@ su
 
 ### Segurança do Power HAL no HyperOS
 
-Em aparelhos que já trazem um HAL de energia, a instalação nova mantém o HAL de fábrica, as hints e o override **desligados**. O comando `action.sh hal on` é bloqueado nesse cenário para não trocar o provedor de energia durante a composição — isso pode causar tela branca. `action.sh override on` é uma escolha explícita, grava uma segunda confirmação (`ALLOW_STOCK_OVERRIDE=1`) e só agenda a troca para o próximo boot; não inicie o HAL manualmente. Configurações antigas que tenham apenas `OVERRIDE_STOCK=1` não ativam mais a substituição. Se o aparelho falhar ao testar um override, crie o arquivo `disable` em `/data/adb/modules/libperfmgr-hyperos/` ou use o modo seguro do seu gerenciador root.
+Em aparelhos que já trazem um HAL de energia, a instalação nova mantém o HAL de fábrica, as hints e o override **desligados**. O comando `action.sh hal on` é bloqueado nesse cenário para não trocar o provedor de energia durante a composição — isso pode causar tela branca.
+
+Para usar o perfmgr completo, faça a escolha uma única vez e reinicie:
+
+```sh
+su
+/data/adb/modules/libperfmgr-hyperos/action.sh override on
+reboot
+```
+
+O comando restaura o manifesto do módulo e grava uma segunda confirmação (`ALLOW_STOCK_OVERRIDE=1`); a substituição só acontece depois que o Android termina o boot. **Nos próximos boots o HAL inicia automaticamente** — não use `hal on` manualmente. `action.sh override off` cancela a substituição para o boot seguinte. Configurações antigas que tenham apenas `OVERRIDE_STOCK=1` não ativam mais a substituição. Se o aparelho falhar ao testar um override, crie o arquivo `disable` em `/data/adb/modules/libperfmgr-hyperos/` ou use o modo seguro do seu gerenciador root.
 
 ### Perfil equilibrado para Blur
 

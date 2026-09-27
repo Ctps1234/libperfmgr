@@ -75,6 +75,10 @@ override_on() {
         pm_conf_set ENABLE_HAL 1
         return 0
     fi
+    if ! pm_override_manifest_on; then
+        echo "  ERRO: manifesto do HAL perfmgr nao esta disponivel; reinstale o modulo"
+        return 1
+    fi
     pm_conf_set OVERRIDE_STOCK 1
     pm_conf_set ALLOW_STOCK_OVERRIDE 1
     pm_conf_set ENABLE_HAL 1
@@ -91,8 +95,9 @@ override_off() {
     pm_conf_set OVERRIDE_STOCK 0
     pm_conf_set ALLOW_STOCK_OVERRIDE 0
     pm_conf_set ENABLE_HAL 0
+    pm_override_manifest_off
     pm_stop_hal
-    echo "  OVERRIDE desativado: o HAL de fabrica continua ativo"
+    echo "  OVERRIDE desativado: reinicie para voltar ao HAL de fabrica com seguranca"
 }
 
 hints_on() {

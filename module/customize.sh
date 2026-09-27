@@ -127,16 +127,20 @@ if [ -n "$STOCK" ]; then
     if pm_override_allowed; then
         # NUNCA usamos whiteout mknod no binario de fabrica porque o init
         # da crash no boot se o binario de um service de classe hal nao puder ser executado.
-        # Em vez disso, deixamos o binario existir e paramos o servico via ctl.stop no runtime.
-        chmod 0644 "$MODPATH/system/vendor/etc/vintf/manifest/android.hardware.power-service.pixel.xml" 2>/dev/null
-        sed -i 's|<hal format="aidl">|<hal format="aidl" override="true">|' \
-            "$MODPATH/system/vendor/etc/vintf/manifest/android.hardware.power-service.pixel.xml" 2>/dev/null
-        ui_print "- OVERRIDE confirmado: o HAL de fabrica sera substituido pelo perfmgr no proximo boot"
+        # Em vez disso, publicamos o manifesto do modulo para o proximo boot.
+        if pm_override_manifest_on; then
+            ui_print "- OVERRIDE confirmado: o HAL de fabrica sera substituido pelo perfmgr no proximo boot"
+        else
+            pm_conf_set ENABLE_HAL 0
+            pm_conf_set OVERRIDE_STOCK 0
+            pm_conf_set ALLOW_STOCK_OVERRIDE 0
+            ui_print "! Manifesto do perfmgr em falta; override cancelado por seguranca"
+        fi
     else
         pm_conf_set ENABLE_HAL 0
         # Em modo seguro, nao publicamos o manifesto VINTF em /vendor/etc/vintf
         # para evitar conflito com o manifesto do HAL de fabrica no arranque
-        rm -rf "$MODPATH/system/vendor/etc/vintf" 2>/dev/null
+        pm_override_manifest_off
         ui_print "- Modo seguro ativo: ENABLE_HAL=0 por padrao"
         ui_print "- Manifesto VINTF omitido (evita conflito com o HAL de fabrica)"
         ui_print "- Para ativar apos o boot funcionar: action.sh override on"

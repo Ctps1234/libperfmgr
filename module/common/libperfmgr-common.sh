@@ -104,6 +104,24 @@ pm_override_allowed() {
         [ "$(pm_conf_get ALLOW_STOCK_OVERRIDE 0)" = "1" ]
 }
 
+pm_override_manifest_on() {
+    # O instalador remove o manifesto em modo seguro. Quando o utilizador faz
+    # opt-in, restaura a copia da variante selecionada para o init poder subir
+    # o HAL apenas no proximo boot — nunca durante uma composicao em curso.
+    src="$MODDIR/.backup_vintf/manifest/android.hardware.power-service.pixel.xml"
+    dst="$MODDIR/system/vendor/etc/vintf/manifest/android.hardware.power-service.pixel.xml"
+    [ -f "$src" ] || return 1
+    mkdir -p "${dst%/*}" 2>/dev/null || return 1
+    cp "$src" "$dst" 2>/dev/null || return 1
+    sed -i 's|<hal format="aidl">|<hal format="aidl" override="true">|' "$dst" 2>/dev/null
+}
+
+pm_override_manifest_off() {
+    # O diretorio e exclusivo do modulo; removê-lo devolve o manifesto stock
+    # no boot seguinte, sem tocar na particao /vendor real.
+    rm -rf "$MODDIR/system/vendor/etc/vintf" 2>/dev/null
+}
+
 # ------------------------- deteccao do dispositivo -------------------------
 pm_soc() {
     # devolve: qcom | mtk | unisoc | exynos | unknown

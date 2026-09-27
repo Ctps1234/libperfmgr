@@ -2,7 +2,7 @@
 
 ## Em desenvolvimento
 
-- **Segurança do Power HAL**: instalações novas preservam o HAL de fábrica e deixam HAL/hints/override desligados quando ele existe. O início manual passa a ser bloqueado para não trocar o HAL durante a composição e causar tela branca; override explícito só é aplicado no próximo boot.
+- **Segurança do Power HAL**: instalações novas preservam o HAL de fábrica e deixam HAL/hints/override desligados quando ele existe. O início manual passa a ser bloqueado para não trocar o HAL durante a composição e causar tela branca; `override on` restaura o manifesto e só aplica a troca no boot seguinte, que passa a iniciar automaticamente.
 - Perfil de composição equilibrado para o **Blur do HyperOS**: pulsos GPU no primeiro frame de `INTERACTION` e `DISPLAY_UPDATE_IMMINENT`, usando degraus intermediários e janelas curtas (120 ms / 48 ms), sem fixar a GPU em frequência máxima.
 - O gerador agora também produz JSON válido quando o arquivo de configuração ADPF não está disponível.
 - Adicionado teste de fumaça do gerador com árvores cpufreq/devfreq sintéticas.
