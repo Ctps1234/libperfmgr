@@ -98,24 +98,28 @@ su
 
 - **Persistent Configuration**: `/data/adb/libperfmgr/perfmgr.conf` (survives module updates):
   ```ini
-  ENABLE_HAL=1
-  ENABLE_HINTS=1
+  ENABLE_HAL=0
+  ENABLE_HINTS=0
   START_METHOD=auto
-  OVERRIDE_STOCK=1
+  OVERRIDE_STOCK=0
+  ALLOW_STOCK_OVERRIDE=0
   FORCE_VARIANT=auto
   ```
 - **Custom Powerhint**: `/data/adb/libperfmgr/powerhint.json` (user-editable frequency and boost table).
+
+### HyperOS Power HAL safety
+
+On devices that already ship a power HAL, a new installation keeps the stock HAL, hints, and override **off**. `action.sh hal on` is deliberately blocked there so the power provider is never switched while composition is running — that can cause a white screen. `action.sh override on` is an explicit choice, writes a second confirmation (`ALLOW_STOCK_OVERRIDE=1`), and only schedules the switch for the next boot; do not start the HAL manually. Old configurations with only `OVERRIDE_STOCK=1` can no longer activate replacement. If an override fails to boot, create the `disable` file in `/data/adb/modules/libperfmgr-hyperos/` or use your root manager's safe mode.
 
 ### Balanced Blur profile
 
 When regenerating, the module selects two valid GPU frequency steps: the first above idle for app launch and the next one for the first touch/Blur frame. The `DISPLAY_UPDATE_IMMINENT` pulse is only **48 ms**, so a long animation is not turned into a sustained maximum-frequency request. This helps Blur entry and transitions while keeping idle consumption unchanged.
 
-Existing persistent configurations are kept on module updates. To apply this profile to an existing powerhint file, run the following as root and restart the HAL (or reboot):
+Existing persistent configurations are kept on module updates. To apply this profile to an existing powerhint file, run the following as root and **reboot the device**; do not restart the HAL manually:
 
 ```sh
 /data/adb/modules/libperfmgr-hyperos/action.sh regen
-/data/adb/modules/libperfmgr-hyperos/action.sh hal off
-/data/adb/modules/libperfmgr-hyperos/action.sh hal on
+reboot
 ```
 
 ---

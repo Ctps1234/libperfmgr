@@ -98,24 +98,28 @@ su
 
 - **Configuração Persistente**: `/data/adb/libperfmgr/perfmgr.conf` (sobrevive a atualizações do módulo):
   ```ini
-  ENABLE_HAL=1
-  ENABLE_HINTS=1
+  ENABLE_HAL=0
+  ENABLE_HINTS=0
   START_METHOD=auto
-  OVERRIDE_STOCK=1
+  OVERRIDE_STOCK=0
+  ALLOW_STOCK_OVERRIDE=0
   FORCE_VARIANT=auto
   ```
 - **Powerhint Personalizável**: `/data/adb/libperfmgr/powerhint.json` (tabela de frequências e boosts editável pelo usuário).
+
+### Segurança do Power HAL no HyperOS
+
+Em aparelhos que já trazem um HAL de energia, a instalação nova mantém o HAL de fábrica, as hints e o override **desligados**. O comando `action.sh hal on` é bloqueado nesse cenário para não trocar o provedor de energia durante a composição — isso pode causar tela branca. `action.sh override on` é uma escolha explícita, grava uma segunda confirmação (`ALLOW_STOCK_OVERRIDE=1`) e só agenda a troca para o próximo boot; não inicie o HAL manualmente. Configurações antigas que tenham apenas `OVERRIDE_STOCK=1` não ativam mais a substituição. Se o aparelho falhar ao testar um override, crie o arquivo `disable` em `/data/adb/modules/libperfmgr-hyperos/` ou use o modo seguro do seu gerenciador root.
 
 ### Perfil equilibrado para Blur
 
 Na regeneração, o módulo escolhe dois degraus válidos da GPU: o primeiro acima do idle para abertura e o seguinte para a primeira frame de toque/Blur. O pulso de `DISPLAY_UPDATE_IMMINENT` dura apenas **48 ms**, portanto não transforma uma animação longa em frequência máxima sustentada. Isso melhora a entrada e as transições desfocadas sem sacrificar o consumo em repouso.
 
-Após atualizar o módulo, uma configuração persistente existente é preservada. Para aplicar o perfil novo ao seu arquivo atual, execute como root e reinicie o HAL (ou o aparelho):
+Após atualizar o módulo, uma configuração persistente existente é preservada. Para aplicar o perfil novo ao seu arquivo atual, execute como root e **reinicie o aparelho**; não reinicie o HAL manualmente:
 
 ```sh
 /data/adb/modules/libperfmgr-hyperos/action.sh regen
-/data/adb/modules/libperfmgr-hyperos/action.sh hal off
-/data/adb/modules/libperfmgr-hyperos/action.sh hal on
+reboot
 ```
 
 ---

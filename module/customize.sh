@@ -124,14 +124,14 @@ if [ -n "$STOCK" ]; then
     ui_print " "
     ui_print "- HAL android.hardware.power de fabrica detetado:"
     ui_print "    $(basename "$STOCK")  (servico init: ${STOCK_SVC:-desconhecido})"
-    if [ "$(pm_conf_get OVERRIDE_STOCK 0)" = "1" ]; then
+    if pm_override_allowed; then
         # NUNCA usamos whiteout mknod no binario de fabrica porque o init
         # da crash no boot se o binario de um service de classe hal nao puder ser executado.
         # Em vez disso, deixamos o binario existir e paramos o servico via ctl.stop no runtime.
         chmod 0644 "$MODPATH/system/vendor/etc/vintf/manifest/android.hardware.power-service.pixel.xml" 2>/dev/null
         sed -i 's|<hal format="aidl">|<hal format="aidl" override="true">|' \
             "$MODPATH/system/vendor/etc/vintf/manifest/android.hardware.power-service.pixel.xml" 2>/dev/null
-        ui_print "- OVERRIDE ativo: o HAL de fabrica sera substituido pelo perfmgr no runtime"
+        ui_print "- OVERRIDE confirmado: o HAL de fabrica sera substituido pelo perfmgr no proximo boot"
     else
         pm_conf_set ENABLE_HAL 0
         # Em modo seguro, nao publicamos o manifesto VINTF em /vendor/etc/vintf
@@ -179,11 +179,19 @@ chmod 0755 "$MODPATH"/common/*.sh "$MODPATH"/action.sh "$MODPATH"/service.sh 2>/
 mkdir -p "$PERSIST" 2>/dev/null
 if [ ! -f "$PERSIST/perfmgr.conf" ]; then
     cp "$MODPATH/perfmgr.conf" "$PERSIST/perfmgr.conf" 2>/dev/null
-    # Primeira instalacao: ja vem ativo com seguranca!
-    pm_conf_set ENABLE_HAL 1
-    pm_conf_set ENABLE_HINTS 1
-    pm_conf_set OVERRIDE_STOCK 1
-    ui_print "- Configuracao inicial: ENABLE_HAL=1 | ENABLE_HINTS=1 | OVERRIDE_STOCK=1"
+    # Nao substituir o Power HAL de um HyperOS em runtime/primeiro boot. A
+    # troca e opt-in; evita tela branca se o vendor depender do HAL original.
+    pm_conf_set ENABLE_HINTS 0
+    pm_conf_set OVERRIDE_STOCK 0
+    pm_conf_set ALLOW_STOCK_OVERRIDE 0
+    if [ -n "$STOCK" ]; then
+        pm_conf_set ENABLE_HAL 0
+        ui_print "- Configuracao segura: HAL de fabrica preservado | hints=0 | override=0"
+        ui_print "- Para tentar substituir conscientemente: action.sh override on e reinicie"
+    else
+        pm_conf_set ENABLE_HAL 1
+        ui_print "- Sem HAL de fabrica: perfmgr ativo | hints=0"
+    fi
 else
     ui_print "- Configuracao do usuario preservada (/data/adb/libperfmgr/perfmgr.conf)"
 fi

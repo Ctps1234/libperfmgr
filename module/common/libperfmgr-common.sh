@@ -80,7 +80,7 @@ pm_conf_get() {
 }
 
 pm_conf_set() {
-    # uso: pm_conf_set CHAVE valor  (escreve sempre na copia persistente)
+    # uso: pm_conf_set CHAVE valor (escreve sempre na copia persistente)
     key=$1
     val=$2
     mkdir -p "$PERSIST" 2>/dev/null
@@ -94,6 +94,14 @@ pm_conf_set() {
     else
         echo "$key=$val" >>"$CONF_USER"
     fi
+}
+
+pm_override_allowed() {
+    # OVERRIDE_STOCK sozinho pode vir de configuracoes antigas. Exigir a chave
+    # de confirmacao torna uma atualizacao segura sem reativar uma troca de HAL
+    # que o utilizador nao confirmou nesta versao.
+    [ "$(pm_conf_get OVERRIDE_STOCK 0)" = "1" ] && \
+        [ "$(pm_conf_get ALLOW_STOCK_OVERRIDE 0)" = "1" ]
 }
 
 # ------------------------- deteccao do dispositivo -------------------------
@@ -276,7 +284,7 @@ pm_wait_for_binary() {
 }
 
 pm_start_hal() {
-    if [ "$(pm_conf_get OVERRIDE_STOCK 0)" = "1" ]; then
+    if pm_override_allowed; then
         pm_stop_stock_hal
     fi
     pm_log HAL "arranque do HAL"

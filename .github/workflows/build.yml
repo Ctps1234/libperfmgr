@@ -57,8 +57,12 @@ jobs:
           [ $fail -eq 0 ] || exit 1
           echo "OK: sintaxe dos scripts"
 
-      - name: Testar gerador de powerhint
-        run: ./tests/gen-powerhint-test.sh
+      - name: Testar scripts e perfis de energia
+        run: |
+          for test in tests/*-test.sh; do
+            [ -x "$test" ] || chmod 0755 "$test"
+            "$test"
+          done
 
       - name: Nome da versão
         id: ver

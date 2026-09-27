@@ -60,10 +60,10 @@
   <div class="card">
     <div class="lbl">Atenção</div>
     <div class="hint">
-      As hints em sysfs vêm <b>desligadas</b> por predefinição: o kernel do HyperOS não tem
-      os nós do Pixel, por isso convém validar o <code>powerhint.json</code> gerado antes de as ativar.
-      Se algo correr mal: mantenha o volume pressionado no arranque (o KernelSU desativa os módulos)
-      ou apague <code>/data/adb/modules/libperfmgr-hyperos</code>.
+      Em aparelhos com HAL de energia próprio, o perfmgr vem em modo seguro: não substitui o HAL de fábrica
+      nem ativa as hints. Não inicie o HAL manualmente em runtime; caso opte por <code>override</code>, aplique
+      apenas por reinicialização. Se algo correr mal: mantenha o volume pressionado no arranque (o KernelSU desativa os módulos)
+      ou crie <code>/data/adb/modules/libperfmgr-hyperos/disable</code>.
     </div>
   </div>
 

@@ -28,13 +28,13 @@ fi
 # garantir etiquetas corretas (pode ter sido montado depois do post-mount)
 pm_label_files
 
-# Se OVERRIDE_STOCK estiver ativo, paramos o HAL de fabrica primeiro
-if [ "$(pm_conf_get OVERRIDE_STOCK 0)" = "1" ]; then
+# So uma confirmacao explicita nesta versao permite parar o HAL de fabrica.
+if pm_override_allowed; then
     pm_stop_stock_hal
 fi
 
 # ja esta a correr?
-if pm_hal_registered && [ "$(pm_conf_get OVERRIDE_STOCK 0)" != "1" ]; then
+if pm_hal_registered && ! pm_override_allowed; then
     pm_log HAL "servico ja registado, nada a fazer"
 else
     # Iniciamos diretamente via pm_start_hal para garantir que o ambiente
