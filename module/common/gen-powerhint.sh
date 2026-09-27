@@ -19,9 +19,22 @@
 OUT=${1:-/data/adb/libperfmgr/powerhint.json}
 ADPF=${2:-/data/adb/modules/libperfmgr-hyperos/common/adpf-config.json}
 
-# bases sobrepostas nos testes
+# Perfil equilibrado para a composicao do HyperOS (incluindo Blur):
+# um pulso curto na GPU evita que a primeira frame do desfoque seja perdida,
+# sem forcar a frequencia maxima ou criar um piso em repouso.
+# Os valores podem ser sobrepostos apenas durante a geracao, por exemplo:
+# PERFMGR_GPU_BLUR_MS=32 sh gen-powerhint.sh ...
+GPU_LAUNCH_MS=${PERFMGR_GPU_LAUNCH_MS:-450}
+GPU_INTERACTION_MS=${PERFMGR_GPU_INTERACTION_MS:-120}
+GPU_BLUR_MS=${PERFMGR_GPU_BLUR_MS:-48}
+CPU_LAUNCH_MS=${PERFMGR_CPU_LAUNCH_MS:-1200}
+CPU_INTERACTION_MS=${PERFMGR_CPU_INTERACTION_MS:-250}
+
+# bases sobrepostas nos testes. GPU_BASE, quando definido, e um diretorio
+# devfreq/Mali ja identificado; nos aparelhos a autodeteccao continua igual.
 CPU_BASE=${CPU_BASE:-/sys/devices/system/cpu}
 STUNE_BASE=${STUNE_BASE:-/dev/stune}
+GPU_BASE=${GPU_BASE:-}
 
 TMPD=$(mktemp -d 2>/dev/null)
 [ -n "$TMPD" ] || TMPD=/data/local/tmp/perfmgr-gen.$$
@@ -138,10 +151,17 @@ detect_cpu() {
 # ------------------------------- detecao: GPU -------------------------------
 detect_gpu() {
     GPU_DIR=""
+    # Uma base explicita e util para testes e kernels que exponham um alias
+    # incomum. Nunca e definida pela instalacao normal.
+    if [ -n "$GPU_BASE" ] && [ -d "$GPU_BASE" ]; then
+        GPU_DIR=$GPU_BASE
+    fi
     # Adreno (Qualcomm)
-    for d in /sys/class/kgsl/kgsl-3d0; do
-        [ -d "$d/devfreq" ] && GPU_DIR=$d/devfreq && break
-    done
+    if [ -z "$GPU_DIR" ]; then
+        for d in /sys/class/kgsl/kgsl-3d0; do
+            [ -d "$d/devfreq" ] && GPU_DIR=$d/devfreq && break
+        done
+    fi
     # Mali / genérico devfreq
     if [ -z "$GPU_DIR" ]; then
         for d in /sys/class/devfreq/*; do
@@ -167,18 +187,36 @@ detect_gpu() {
     if writable "$gmin"; then
         avail=$(cat "$GPU_DIR/available_frequencies" 2>/dev/null)
         if [ -n "$avail" ]; then
-            vals=$(echo "$avail" | tr ' ' '\n' | grep -E '^[0-9]+$' | sort -n | awk 'NR==1 || (NR%2==1 && NR<=5)' | head -4 | tr '\n' ' ')
+            # O topo e removido antes da amostragem: um efeito Blur nao deve
+            # pedir OPP maximo. Se so existir o OPP maximo, nao criamos hint
+            # de GPU e deixamos o governor fazer a escolha segura.
+            all=$(echo "$avail" | tr ' ' '\n' | grep -E '^[0-9]+$' | sort -n)
+            top=$(echo "$all" | tail -n 1)
+            vals=$(echo "$all" | awk -v top="$top" '$1 < top' | awk 'NR==1 || (NR%2==1 && NR<=5)' | head -4 | tr '\n' ' ')
         else
+            # Sem uma tabela nao ha como distinguir OPP intermediario do
+            # maximo. Conservamos apenas o minimo atual, se for menor que max.
             cur=$(cat "$gmin" 2>/dev/null)
             hi=$(cat "$gmax" 2>/dev/null)
-            vals=$(dedupe "${cur:-0} ${hi:-0}")
+            case "$cur:$hi" in
+            *[!0-9:]* | :* | *:) vals="" ;;
+            *) [ "$cur" -lt "$hi" ] && vals=$cur || vals="" ;;
+            esac
         fi
         vals=$(dedupe "$vals")
         [ -n "$vals" ] && {
             add_node "GPUMinFreq" "$gmin" "$(jarr "$vals")" \
-                ', "DefaultIndex": 0, "ResetOnInit": true, "WriteOnly": true' 
+                ', "DefaultIndex": 0, "ResetOnInit": true, "WriteOnly": true'
+            # Dois degraus: abertura usa o primeiro patamar acima do idle;
+            # Blur/interacao usa o seguinte por poucos milissegundos. Isto
+            # evita fixar a GPU no maximo, que e o maior custo de bateria.
             GPU_BOOST=$(echo "$vals" | tr ' ' '\n' | grep -E '^[0-9]+$' | sed -n '2p')
-            [ -n "$GPU_BOOST" ] || GPU_BOOST=$(echo "$vals" | tr ' ' '\n' | grep -E '^[0-9]+$' | head -n 1)
+            # Um unico valor seguro ja e o idle; nesse caso nao ha boost.
+            # Com dois ou mais, o segundo e um degrau intermediario valido.
+            if [ -n "$GPU_BOOST" ]; then
+                GPU_BLUR_BOOST=$(echo "$vals" | tr ' ' '\n' | grep -E '^[0-9]+$' | sed -n '3p')
+                [ -n "$GPU_BLUR_BOOST" ] || GPU_BLUR_BOOST=$GPU_BOOST
+            fi
         }
     fi
     # GpuSysfsPath e usado pelo GpuCapacityNode (ADPF GPU boost) e so faz sentido
@@ -212,19 +250,33 @@ build_actions() {
             node=${pair%%=*}
             val=${pair##*=}
             if [ -n "$val" ]; then
-                # LAUNCH em 1200ms (tempo ideal para abrir app sem drenar bateria)
-                add_action LAUNCH "$node" "$val" 1200
+                # Mantem o boost de abertura separado do pulso de frame.
+                # O valor e moderado e expira, logo nao cria um piso de CPU.
+                add_action LAUNCH "$node" "$val" "$CPU_LAUNCH_MS"
                 [ -z "$first_node" ] && { first_node="$node"; first_val="$val"; }
             fi
         done
-        # INTERACTION rapido de toque (250ms)
+        # O toque precisa apenas do cluster eficiente: deixar os restantes
+        # clusters livres evita gasto desnecessario em scroll e transicoes.
         if [ -n "$first_node" ] && [ -n "$first_val" ]; then
-            add_action INTERACTION "$first_node" "$first_val" 250
+            add_action INTERACTION "$first_node" "$first_val" "$CPU_INTERACTION_MS"
         fi
     fi
+
+    # O Blur do HyperOS e uma carga curta de composicao. DISPLAY_UPDATE_IMMINENT
+    # e enviado junto da proxima atualizacao do SurfaceFlinger, por isso o pulso
+    # abaixo aquece a GPU para a primeira frame sem pedir frequencia maxima.
+    if [ -n "$GPU_BOOST" ]; then
+        add_action LAUNCH GPUMinFreq "$GPU_BOOST" "$GPU_LAUNCH_MS"
+    fi
+    if [ -n "$GPU_BLUR_BOOST" ]; then
+        add_action INTERACTION GPUMinFreq "$GPU_BLUR_BOOST" "$GPU_INTERACTION_MS"
+        add_action DISPLAY_UPDATE_IMMINENT GPUMinFreq "$GPU_BLUR_BOOST" "$GPU_BLUR_MS"
+    fi
+
     [ -n "$STUNE_NODE" ] && {
-        add_action LAUNCH "$STUNE_NODE" 50 1200
-        add_action INTERACTION "$STUNE_NODE" 30 250
+        add_action LAUNCH "$STUNE_NODE" 50 "$CPU_LAUNCH_MS"
+        add_action INTERACTION "$STUNE_NODE" 30 "$CPU_INTERACTION_MS"
     }
 
     # garantir pelo menos uma acao
@@ -244,6 +296,7 @@ add_fallback_node() {
 # ---------------------------------- main ------------------------------------
 CPU_BOOST_NODES=""
 GPU_BOOST=""
+GPU_BLUR_BOOST=""
 GPU_SYSFS_DIR=""
 STUNE_NODE=""
 
@@ -268,9 +321,18 @@ mkdir -p "$(dirname "$OUT")" 2>/dev/null
     printf '  ],\n'
     printf '  "Actions": [\n'
     awk '{ printf "%s%s", sep, $0; sep=",\n" } END { if (NR) printf "\n" }' "$ACT_F"
-    printf '  ],\n'
+    printf '  ]'
+    # So ha uma virgula se outro campo vier a seguir. Sem o ADPF (por
+    # exemplo, em regeneracao manual incompleta), o ficheiro continua JSON
+    # valido e o HAL pode usar os Nodes/Actions seguros.
+    if [ -n "$GPU_SYSFS_DIR" ] || [ -f "$ADPF" ]; then
+        printf ','
+    fi
+    printf '\n'
     if [ -n "$GPU_SYSFS_DIR" ]; then
-        printf '  "GpuSysfsPath": "%s",\n' "$GPU_SYSFS_DIR"
+        printf '  "GpuSysfsPath": "%s"' "$GPU_SYSFS_DIR"
+        [ -f "$ADPF" ] && printf ','
+        printf '\n'
     fi
     if [ -f "$ADPF" ]; then
         printf '  "AdpfConfig": '

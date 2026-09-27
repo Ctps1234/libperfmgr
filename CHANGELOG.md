@@ -1,5 +1,11 @@
 # Registo de alterações
 
+## Em desenvolvimento
+
+- Perfil de composição equilibrado para o **Blur do HyperOS**: pulsos GPU no primeiro frame de `INTERACTION` e `DISPLAY_UPDATE_IMMINENT`, usando degraus intermediários e janelas curtas (120 ms / 48 ms), sem fixar a GPU em frequência máxima.
+- O gerador agora também produz JSON válido quando o arquivo de configuração ADPF não está disponível.
+- Adicionado teste de fumaça do gerador com árvores cpufreq/devfreq sintéticas.
+
 ## v1.0 (primeira versão)
 
 - **Duas variantes de binários**, escolhidas automaticamente pelo Android:

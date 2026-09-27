@@ -57,6 +57,9 @@ jobs:
           [ $fail -eq 0 ] || exit 1
           echo "OK: sintaxe dos scripts"
 
+      - name: Testar gerador de powerhint
+        run: ./tests/gen-powerhint-test.sh
+
       - name: Nome da versão
         id: ver
         run: |

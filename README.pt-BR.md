@@ -26,8 +26,8 @@ Ele fornece a infraestrutura completa de gerenciamento de energia e fluidez do A
    - Analisa os clusters em `/sys/devices/system/cpu/cpufreq/` e nós de GPU Adreno/Mali na instalação.
    - Gera apenas caminhos graváveis válidos, sem caminhos estáticos ou genéricos.
 3. **Perfil Otimizado (Fluidez + Economia)**:
-   - Boost de abertura (`LAUNCH`) ajustado para **1200ms** (rápido, sem drenar bateria).
-   - Micro-pulso de toque (`INTERACTION`) de **250ms** para resposta imediata ao scroll.
+   - Boost de abertura de CPU (`LAUNCH`) de **1200ms** e micro-pulso de toque (`INTERACTION`) de **250ms**.
+   - Para a composição do **Blur do HyperOS**, a GPU recebe somente um patamar intermediário: **450ms** ao abrir, **120ms** no toque e **48ms** em `DISPLAY_UPDATE_IMMINENT`. Não há frequência máxima forçada nem piso permanente de GPU.
    - Amigável ao Deep Sleep (`Race-to-Sleep`): dreno noturno em standby reduzido para a faixa de **~0.3% - 0.5% por hora**.
 4. **Suporte Multi-Arquitetura Universal**:
    - **`api34` (Pixel 5 Snapdragon)**: 100% compatível com ARMv8.0 (Snapdragon 680, 685, 765G, Cortex-A73/A53). Zero erro de `Illegal instruction`.
@@ -105,6 +105,18 @@ su
   FORCE_VARIANT=auto
   ```
 - **Powerhint Personalizável**: `/data/adb/libperfmgr/powerhint.json` (tabela de frequências e boosts editável pelo usuário).
+
+### Perfil equilibrado para Blur
+
+Na regeneração, o módulo escolhe dois degraus válidos da GPU: o primeiro acima do idle para abertura e o seguinte para a primeira frame de toque/Blur. O pulso de `DISPLAY_UPDATE_IMMINENT` dura apenas **48 ms**, portanto não transforma uma animação longa em frequência máxima sustentada. Isso melhora a entrada e as transições desfocadas sem sacrificar o consumo em repouso.
+
+Após atualizar o módulo, uma configuração persistente existente é preservada. Para aplicar o perfil novo ao seu arquivo atual, execute como root e reinicie o HAL (ou o aparelho):
+
+```sh
+/data/adb/modules/libperfmgr-hyperos/action.sh regen
+/data/adb/modules/libperfmgr-hyperos/action.sh hal off
+/data/adb/modules/libperfmgr-hyperos/action.sh hal on
+```
 
 ---
 

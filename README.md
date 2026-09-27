@@ -26,8 +26,8 @@ It provides the complete userland power management framework:
    - Probes `/sys/devices/system/cpu/cpufreq/` clusters and Adreno/Mali GPU nodes at installation.
    - Generates only valid, writable sysfs paths without hardcoded device values.
 3. **Optimized Battery & Smooth Profile**:
-   - Fast `LAUNCH` boost (1200ms) for snappy app startup without battery waste.
-   - Micro `INTERACTION` touch pulse (250ms) for instant scroll responsiveness.
+   - CPU `LAUNCH` boost (1200ms) and micro `INTERACTION` touch pulse (250ms).
+   - For **HyperOS Blur** composition, the GPU gets only an intermediate step: **450ms** on launch, **120ms** on touch, and **48ms** for `DISPLAY_UPDATE_IMMINENT`. It never forces maximum frequency or a permanent GPU floor.
    - Deep sleep friendly (`Race-to-Sleep`): keeps background standby drain as low as ~0.3% - 0.5% per hour.
 4. **Universal Multi-Architecture Support**:
    - **`api34` (Pixel 5 Snapdragon)**: 100% ARMv8.0 compatible (Snapdragon 680, 685, 765G, older Cortex-A73/A53). No `Illegal instruction` errors.
@@ -105,6 +105,18 @@ su
   FORCE_VARIANT=auto
   ```
 - **Custom Powerhint**: `/data/adb/libperfmgr/powerhint.json` (user-editable frequency and boost table).
+
+### Balanced Blur profile
+
+When regenerating, the module selects two valid GPU frequency steps: the first above idle for app launch and the next one for the first touch/Blur frame. The `DISPLAY_UPDATE_IMMINENT` pulse is only **48 ms**, so a long animation is not turned into a sustained maximum-frequency request. This helps Blur entry and transitions while keeping idle consumption unchanged.
+
+Existing persistent configurations are kept on module updates. To apply this profile to an existing powerhint file, run the following as root and restart the HAL (or reboot):
+
+```sh
+/data/adb/modules/libperfmgr-hyperos/action.sh regen
+/data/adb/modules/libperfmgr-hyperos/action.sh hal off
+/data/adb/modules/libperfmgr-hyperos/action.sh hal on
+```
 
 ---
 
