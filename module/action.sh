@@ -106,9 +106,16 @@ hints_on() {
         return 1
     fi
     stock=$(pm_stock_hal)
-    if [ -n "$stock" ] && ! pm_override_allowed; then
-        echo "  ERRO: o HAL de fabrica esta ativo; nao aplique hints do perfmgr sobre ele"
-        return 1
+    if [ -n "$stock" ]; then
+        if ! pm_override_allowed; then
+            echo "  ERRO: o HAL de fabrica esta ativo; nao aplique hints do perfmgr sobre ele"
+            return 1
+        fi
+        # O HAL stock ainda pode estar vivo ate ao reboot que aplica o
+        # override. Guardamos a escolha, sem escrever propriedades/hints nele.
+        pm_conf_set ENABLE_HINTS 1
+        echo "  Hints agendadas para o proximo boot do perfmgr"
+        return 0
     fi
     pm_conf_set ENABLE_HINTS 1
     pm_enable_hints 1

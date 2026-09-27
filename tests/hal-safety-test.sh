@@ -25,6 +25,7 @@ require 'if pm_override_allowed; then' module/customize.sh
 require 'BLOQUEADO: HAL de fabrica detetado' module/action.sh
 require 'pm_override_manifest_on' module/action.sh
 require 'pm_override_manifest_off' module/action.sh
+require 'Hints agendadas para o proximo boot do perfmgr' module/action.sh
 require 'ALLOW_STOCK_OVERRIDE 1' module/perfmgr.conf
 
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/libperfmgr-hal-test.XXXXXX")

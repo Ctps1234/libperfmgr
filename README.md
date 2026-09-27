@@ -111,15 +111,16 @@ su
 
 On devices that already ship a power HAL, a new installation keeps the stock HAL, hints, and override **off**. `action.sh hal on` is deliberately blocked there so the power provider is never switched while composition is running — that can cause a white screen.
 
-To use the full perfmgr stack, make the choice once and reboot:
+To use the full perfmgr stack and the Blur profile, make the choice once and reboot:
 
 ```sh
 su
 /data/adb/modules/libperfmgr-hyperos/action.sh override on
+/data/adb/modules/libperfmgr-hyperos/action.sh hints on
 reboot
 ```
 
-The command restores the module manifest and writes a second confirmation (`ALLOW_STOCK_OVERRIDE=1`); replacement only happens after Android finishes booting. **On later boots the HAL starts automatically** — do not start it through `hal on`. `action.sh override off` cancels replacement for the next boot. Old configurations with only `OVERRIDE_STOCK=1` can no longer activate replacement. If an override fails to boot, create the `disable` file in `/data/adb/modules/libperfmgr-hyperos/` or use your root manager's safe mode.
+The commands restore the module manifest, schedule hints, and write a second confirmation (`ALLOW_STOCK_OVERRIDE=1`); replacement only happens after Android finishes booting. **On later boots the HAL and hints start automatically** — do not start it through `hal on`. `action.sh override off` cancels replacement for the next boot. Old configurations with only `OVERRIDE_STOCK=1` can no longer activate replacement. If an override fails to boot, create the `disable` file in `/data/adb/modules/libperfmgr-hyperos/` or use your root manager's safe mode.
 
 ### Balanced Blur profile
 
